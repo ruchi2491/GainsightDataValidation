@@ -1,31 +1,32 @@
 package com.atmecs.datavalidation;
 
-import com.opencsv.CSVReader;
-import org.apache.commons.io.FilenameUtils;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.streaming.SXSSFSheet;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
-
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FileReader;
-import java.io.IOException;
-import java.util.ArrayList;
+import org.apache.commons.io.FilenameUtils;
 
 public class ConvertCsvToExcel {
 
-	public static final char FILE_DELIMITER = ',';
+	public static final String FILE_DELIMITER = ",(?=([^\"]*\"[^\"]*\")*[^\"]*$)";
 	public static final String FILE_EXTN = ".xlsx";
 	public static final String FILE_NAME = "EXCEL_DATA";
 	private static Logger logger = Logger.getLogger(ConvertCsvToExcel.class);
 
 	public static String convertCsvToXls(String csvFilePath) {
 		SXSSFSheet sheet = null;
-		CSVReader reader = null;
 		Workbook workBook = null;
+		BufferedReader fileReader = null;
 		String generatedXlsFilePath = "";
 		FileOutputStream fileOutputStream = null;
 
@@ -43,33 +44,40 @@ public class ConvertCsvToExcel {
 		for (int j = 0; j < listOfFiles.length; j++) {
 			if (listOfFiles[j].isFile()) {
 				System.out.println("File " + listOfFiles[j].getName());
-				try {
-
-					/**** Get the CSVReader Instance & Specify The Delimiter To Be Used ****/
-					
-					
+				try {			
 					String Fileloc=csvFilePath+listOfFiles[j].getName();
-					
-					String[] nextLine;
-					reader = new CSVReader(new FileReader(Fileloc), FILE_DELIMITER);
+					fileReader = new BufferedReader(new InputStreamReader(new FileInputStream(new File(Fileloc)), "UTF-16"));
 					workBook = new SXSSFWorkbook();
 					sheet = (SXSSFSheet) workBook.createSheet("Sheet");
 					int rowNum = 0;
+					String line="";
+					
 					logger.info("Creating New .Xls File From The Already Generated .Csv File");
-					while ((nextLine = reader.readNext()) != null) {
+					
+					while ((line = fileReader.readLine()) != null) {
+						//System.out.println(line);
 						Row currentRow = sheet.createRow(rowNum++);
-						for (int i = 0; i < nextLine.length; i++) {
-							System.out.println(nextLine[i]);
-							currentRow.createCell(i).setCellValue(nextLine[i]);
-						}
+						String[] tokens = line.split(FILE_DELIMITER);
+						int x = 0;
+						for (String token : tokens) {
+							String trial=token.trim();
+							if(trial.contains("\"")) {
+							trial=trial.replace('"', ' ').trim();
+							}
+							currentRow.createCell(x).setCellValue(trial);	
+							x++;
+						}	
 					}
+					
 					File file = new File(Fileloc);
 					String filename = FilenameUtils.removeExtension(file.getName());
-					generatedXlsFilePath = file.getParent() + "\\" + filename + FILE_EXTN;
+					generatedXlsFilePath = file.getParent() + "\\" + filename  + FILE_EXTN;
+					
 					logger.info("The File Is Generated At The Following Location= " + generatedXlsFilePath);
+					
 					fileOutputStream = new FileOutputStream(generatedXlsFilePath.trim());
-					System.out.println(fileOutputStream);
 					workBook.write(fileOutputStream);
+					
 				} catch (Exception exObj) {
 					logger.error("Exception In convertCsvToXls() Method?=  " + exObj);
 				} finally {
@@ -79,7 +87,7 @@ public class ConvertCsvToExcel {
 						/**** Closing The File-Writer Object ****/
 						fileOutputStream.close();
 						/**** Closing The CSV File-ReaderObject ****/
-						reader.close();
+						fileReader.close();
 					} catch (IOException ioExObj) {
 						logger.error("Exception While Closing I/O Objects In convertCsvToXls() Method?=  " + ioExObj);
 					}
@@ -90,16 +98,6 @@ public class ConvertCsvToExcel {
 			}
 		}
 		return generatedXlsFilePath;
-	}
-
-	public static void main(String[] args) throws Exception {
-		BasicConfigurator.configure();
-		String fileLoc = "";
-		ConstData condata = new ConstData();
-		condata.prop();
-		System.out.println(condata.CSVFILEPATH);
-		fileLoc = ConvertCsvToExcel.convertCsvToXls(condata.CSVFILEPATH);
-		System.out.println(fileLoc);
 	}
 
 	public static void movefile(String csvfileloc) {
@@ -125,4 +123,17 @@ public class ConvertCsvToExcel {
 		}
 
 	}
+	
+	
+	public static void main(String[] args) throws Exception {
+		BasicConfigurator.configure();
+		String fileLoc = "";
+		ConstData condata = new ConstData();
+		condata.prop();
+		System.out.println(condata.CSVFILEPATH);
+		fileLoc = ConvertCsvToExcel.convertCsvToXls(condata.CSVFILEPATH);
+		System.out.println(fileLoc);
+	}
 }
+
+
